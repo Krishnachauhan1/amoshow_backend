@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\VideoController;
 use App\Http\Controllers\Api\WatchHistoryController;
 use App\Http\Controllers\Api\VideoCollabController;
+use App\Http\Controllers\Api\VideoPurchaseController;
 use App\Http\Controllers\Api\YoutubeCommentController;
 use App\Http\Controllers\Api\YoutubeController;
 use Illuminate\Support\Facades\Route;
@@ -109,6 +110,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/videos',               [YoutubeController::class, 'upload']);
         Route::post('/videos/{video}/like',  [YoutubeController::class, 'likeVideo']);
         Route::delete('/videos/{video}/like', [YoutubeController::class, 'unlikeVideo']);
+        Route::post('/videos/{video}/purchase/initiate', [VideoPurchaseController::class, 'initiate']);
+        Route::post('/videos/{video}/purchase/verify', [VideoPurchaseController::class, 'verify']);
         Route::post('/videos/{video}/comments', [YoutubeCommentController::class, 'store']);
         Route::delete('/videos/{video}/comments/{comment}', [YoutubeCommentController::class, 'destroy']);
         Route::get('/ads',                   [YoutubeController::class, 'adHistory']);

@@ -64,6 +64,19 @@ class YoutubeFormatter
         return '₹' . number_format($rupees);
     }
 
+    public static function price(float $amount): string
+    {
+        if ($amount <= 0) {
+            return 'Free';
+        }
+
+        if (round($amount * 100) % 100 === 0) {
+            return '₹' . number_format($amount, 0);
+        }
+
+        return '₹' . number_format($amount, 2);
+    }
+
     /**
      * Public media URL. Set PUBLIC_STORAGE_PREFIX in .env:
      * - "storage" → https://domain.com/storage/... (docroot = Laravel /public)

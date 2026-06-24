@@ -41,7 +41,7 @@ class YoutubeController extends Controller
 
         $user = $request->user();
 
-        $videos = Video::with(['channel', 'shortLikes'])
+        $videos = Video::with(['channel.user', 'shortLikes'])
             ->youtube()
             ->published()
             ->when($category, fn ($q) => $q->where('genre', $category))
@@ -320,6 +320,7 @@ class YoutubeController extends Controller
             'visibility'          => 'nullable|in:public,private,unlisted',
             'genre'               => 'nullable|string|max:50',
             'is_premium'          => 'nullable|boolean',
+            'price'               => 'nullable|numeric|min:1|max:999999',
             'comments_enabled'    => 'nullable|boolean',
             'downloadable'        => 'nullable|boolean',
             'is_collab'           => 'nullable|boolean',
@@ -348,6 +349,25 @@ class YoutubeController extends Controller
         $duration = $request->integer('duration_seconds')
             ?: VideoProbe::durationSeconds(storage_path('app/public/' . $videoPath));
 
+        $isPremium = $request->boolean('is_premium');
+        $price = 0.0;
+
+        if ($isPremium) {
+            if (! $request->filled('price')) {
+                return response()->json([
+                    'message' => 'Paid videos need a price of at least ₹1',
+                ], 422);
+            }
+
+            $price = round((float) $request->input('price'), 2);
+
+            if ($price < 1) {
+                return response()->json([
+                    'message' => 'Paid videos need a price of at least ₹1',
+                ], 422);
+            }
+        }
+
         $video = $channel->videos()->create([
             'title'               => $request->title,
             'description'         => $request->description,
@@ -358,7 +378,8 @@ class YoutubeController extends Controller
             'visibility'          => $request->visibility ?? 'public',
             'genre'               => $request->genre ?? 'Other',
             'duration'            => $duration,
-            'is_premium'          => $request->boolean('is_premium'),
+            'is_premium'          => $isPremium,
+            'price'               => $price,
             'comments_enabled'    => $request->boolean('comments_enabled', true),
             'downloadable'        => $request->boolean('downloadable', true),
             'is_collab'           => $request->boolean('is_collab'),
