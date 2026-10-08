@@ -1,12 +1,11 @@
 ---
 deployment:
   tasks:
-    - export HOME=/home/amoshwz1
-    - export REPO=/home/amoshwz1/repositories/amoshow_backend
-    - /bin/cp -R $REPO/app $HOME/
-    - /bin/cp -R $REPO/bootstrap $HOME/
-    - /bin/cp -R $REPO/config $HOME/
-    - /bin/cp -R $REPO/routes $HOME/
-    - /bin/cp -R $REPO/resources $HOME/
-    - /bin/cp $REPO/artisan $HOME/
-    - /bin/cp -R $REPO/public/. $HOME/public_html/
+    - export DEPLOYPATH=/home/amoshwz1/public_html/
+    - /bin/cp -R public/. $DEPLOYPATH
+    - /bin/cp -R app /home/amoshwz1/
+    - /bin/cp -R bootstrap /home/amoshwz1/
+    - /bin/cp -R config /home/amoshwz1/
+    - /bin/cp -R routes /home/amoshwz1/
+    - /bin/cp -R resources /home/amoshwz1/
+    - /bin/cp artisan /home/amoshwz1/
