@@ -3,9 +3,9 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/amoshwz1/public_html/
     - /bin/cp -R public/. $DEPLOYPATH
-    - /bin/cp -R app /home/amoshwz1/
-    - /bin/cp -R bootstrap /home/amoshwz1/
-    - /bin/cp -R config /home/amoshwz1/
-    - /bin/cp -R routes /home/amoshwz1/
-    - /bin/cp -R resources /home/amoshwz1/
-    - /bin/cp artisan /home/amoshwz1/
+    - /bin/cp -R app $DEPLOYPATH
+    - /bin/cp -R bootstrap $DEPLOYPATH
+    - /bin/cp -R config $DEPLOYPATH
+    - /bin/cp -R routes $DEPLOYPATH
+    - /bin/cp -R resources $DEPLOYPATH
+    - /bin/cp artisan $DEPLOYPATH
