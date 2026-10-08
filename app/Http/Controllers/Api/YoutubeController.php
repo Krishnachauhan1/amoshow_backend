@@ -15,6 +15,7 @@ use App\Models\Video;
 use App\Models\VideoCollaborator;
 use App\Notifications\VideoCollabInviteNotification;
 use App\Models\YoutubeCategory;
+use App\Support\ChunkAssembler;
 use App\Support\VideoProbe;
 use App\Support\YoutubeFormatter;
 use Illuminate\Http\Request;
@@ -315,7 +316,8 @@ class YoutubeController extends Controller
         $request->validate([
             'title'               => 'required|string|max:255',
             'description'         => 'nullable|string',
-            'video'               => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/3gpp,video/3gpp2,video/webm|max:512000',
+            'video'               => 'required_without:upload_id|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/3gpp,video/3gpp2,video/webm|max:512000',
+            'upload_id'           => 'required_without:video|nullable|string',
             'thumbnail'           => 'nullable|image|max:4096',
             'visibility'          => 'nullable|in:public,private,unlisted',
             'genre'               => 'nullable|string|max:50',
@@ -341,7 +343,19 @@ class YoutubeController extends Controller
             ]);
         }
 
-        $videoPath = $request->file('video')->store('videos', 'public');
+        if ($request->filled('upload_id')) {
+            try {
+                $videoPath = ChunkAssembler::assemble(
+                    (int) $request->user()->id,
+                    (string) $request->input('upload_id')
+                );
+            } catch (\Throwable $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        } else {
+            $videoPath = $request->file('video')->store('videos', 'public');
+        }
+
         $thumbPath = $request->hasFile('thumbnail')
             ? $request->file('thumbnail')->store('thumbnails', 'public')
             : null;

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Models\Video;
+use App\Support\ChunkAssembler;
 use App\Support\VideoProbe;
 
 class ChunkedUploadController extends Controller
@@ -98,57 +99,17 @@ public function finalize(Request $request)
 
     try {
 
-        $chunks = UploadChunk::where('upload_id', $request->upload_id)
-            ->where('user_id', $request->user()->id)
-            ->orderBy('chunk_index')
-            ->get();
-
-        if ($chunks->isEmpty()) {
-            return response()->json(['message' => 'No chunks found'], 422);
+        try {
+            $filename = ChunkAssembler::assemble(
+                (int) $request->user()->id,
+                (string) $request->upload_id
+            );
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $totalChunks = $chunks->first()->total_chunks;
-
-        if ($chunks->count() < $totalChunks) {
-            return response()->json([
-                'message'  => 'Upload incomplete',
-                'uploaded' => $chunks->count(),
-                'total'    => $totalChunks,
-            ], 422);
-        }
-
-        // Ensure all chunk files exist
-        foreach ($chunks as $chunk) {
-            if (!Storage::disk('local')->exists($chunk->chunk_path)) {
-                return response()->json([
-                    'message' => 'Chunk file missing: ' . $chunk->chunk_index
-                ], 422);
-            }
-        }
-
-        // Create final file
-        $ext      = pathinfo($chunks->first()->original_filename, PATHINFO_EXTENSION);
-        $filename = 'videos/' . Str::uuid() . '.' . $ext;
         $fullPath = storage_path('app/public/' . $filename);
-
-        // Ensure directory exists
-        if (!file_exists(dirname($fullPath))) {
-            mkdir(dirname($fullPath), 0777, true);
-        }
-
-        $dest = fopen($fullPath, 'wb');
-
-        foreach ($chunks as $chunk) {
-            $src = fopen(storage_path('app/' . $chunk->chunk_path), 'rb');
-            stream_copy_to_stream($src, $dest);
-            fclose($src);
-        }
-
-        fclose($dest);
-
-        // Cleanup chunks
-        Storage::disk('local')->deleteDirectory('chunks/' . $request->upload_id);
-        UploadChunk::where('upload_id', $request->upload_id)->delete();
 
         // Extra logical validation
         if ($request->type === 'episode' && !$request->series_id) {
