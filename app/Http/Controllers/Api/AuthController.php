@@ -21,6 +21,14 @@ class AuthController extends Controller
         $user  = User::create($data);
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        try {
+            $user->channel()->create([
+                'name' => $data['name'].' Channel',
+            ]);
+        } catch (\Throwable) {
+            // Channel can still be created later from the app.
+        }
+
         return response()->json([
             'user'  => $user,
             'token' => $token,
@@ -40,6 +48,16 @@ class AuthController extends Controller
 
         $user  = Auth::user();
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        try {
+            if (! $user->channel) {
+                $user->channel()->create([
+                    'name' => ($user->name ?: 'My').' Channel',
+                ]);
+            }
+        } catch (\Throwable) {
+            // Upload flow can still create the channel later.
+        }
 
         return response()->json([
             'user'  => $user,

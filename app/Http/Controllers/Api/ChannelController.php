@@ -23,8 +23,8 @@ class ChannelController extends Controller
 }
     public function store(Request $request)
     {
-        if ($request->user()->channel) {
-            return response()->json(['message' => 'Channel already exists'], 422);
+        if ($channel = $request->user()->channel) {
+            return response()->json($channel);
         }
 
         $data = $request->validate([
