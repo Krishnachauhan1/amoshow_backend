@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 class ShortsController extends Controller
 {
-    private const MAX_DURATION_SECONDS = 60;
+    private const MAX_DURATION_SECONDS = 180;
 
     public function feed(Request $request)
     {
