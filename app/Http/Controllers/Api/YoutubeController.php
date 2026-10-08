@@ -316,9 +316,9 @@ class YoutubeController extends Controller
         $request->validate([
             'title'               => 'required|string|max:255',
             'description'         => 'nullable|string',
-            'video'               => 'required_without:upload_id|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/3gpp,video/3gpp2,video/webm|max:512000',
+            'video'               => 'required_without:upload_id|file|max:512000',
             'upload_id'           => 'required_without:video|nullable|string',
-            'thumbnail'           => 'nullable|image|max:4096',
+            'thumbnail'           => 'nullable|file|max:4096',
             'visibility'          => 'nullable|in:public,private,unlisted',
             'genre'               => 'nullable|string|max:50',
             'is_premium'          => 'nullable|boolean',
@@ -331,6 +331,13 @@ class YoutubeController extends Controller
             'has_paid_promotion'  => 'nullable|boolean',
             'duration_seconds'    => 'nullable|integer|min:1',
         ]);
+
+        if ($request->hasFile('video')) {
+            $ext = strtolower((string) $request->file('video')->getClientOriginalExtension());
+            if (! in_array($ext, ['mp4', 'mov', 'avi', '3gp', '3gpp', 'webm'], true)) {
+                return response()->json(['message' => 'Upload an MP4, MOV, AVI or WebM video'], 422);
+            }
+        }
 
         $channel = $request->user()->channel;
 

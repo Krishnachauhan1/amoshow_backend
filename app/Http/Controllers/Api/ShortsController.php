@@ -182,13 +182,18 @@ class ShortsController extends Controller
         $request->validate([
             'title'            => 'required|string|max:100',
             'description'      => 'nullable|string|max:500',
-            'video'            => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:102400',
-            'thumbnail'        => 'nullable|image|max:4096',
+            'video'            => 'required|file|max:102400',
+            'thumbnail'        => 'nullable|file|max:4096',
             'visibility'       => 'nullable|in:public,private,unlisted',
             'genre'            => 'nullable|string|max:50',
             'duration_seconds' => 'nullable|integer|min:1|max:' . self::MAX_DURATION_SECONDS,
             'comments_enabled' => 'nullable|boolean',
         ]);
+
+        $ext = strtolower((string) $request->file('video')->getClientOriginalExtension());
+        if (! in_array($ext, ['mp4', 'mov', 'avi', '3gp', 'webm'], true)) {
+            return response()->json(['message' => 'Upload an MP4, MOV, AVI or WebM video'], 422);
+        }
 
         $channel = $request->user()->channel;
 
