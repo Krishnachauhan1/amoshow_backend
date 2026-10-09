@@ -627,27 +627,16 @@ class YoutubeController extends Controller
 
     public function membershipPlans()
     {
-        $plans = Plan::orderBy('price')->get();
-
-        if ($plans->isEmpty()) {
-            return response()->json([
-                'plans' => [
-                    ['name' => 'Basic', 'price' => '₹99/mo', 'desc' => 'Ad-free viewing + 720p downloads', 'icon' => '⭐'],
-                    ['name' => 'Pro', 'price' => '₹299/mo', 'desc' => 'All Basic + 4K + Priority support', 'icon' => '🚀'],
-                    ['name' => 'Pro + OTT', 'price' => '₹499/mo', 'desc' => 'Pro + Full OTT library access', 'icon' => '👑'],
-                ],
-            ]);
-        }
-
+        $plans = Plan::ensureDefaults();
         $icons = ['⭐', '🚀', '👑', '💎'];
 
         return response()->json([
             'plans' => $plans->values()->map(fn ($p, $i) => [
-                'id'    => $p->id,
-                'name'  => $p->name,
-                'price' => '₹' . number_format($p->price) . '/mo',
-                'desc'  => is_array($p->features) ? implode(' + ', $p->features) : ($p->features ?? ''),
-                'icon'  => $icons[$i % count($icons)],
+                'id' => $p->id,
+                'name' => $p->name,
+                'price' => '₹'.number_format((float) $p->price).'/mo',
+                'desc' => $p->descriptionText(),
+                'icon' => $icons[$i % count($icons)],
             ]),
         ]);
     }

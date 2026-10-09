@@ -13,7 +13,9 @@ class SubscriptionController extends Controller
 {
     public function plans()
     {
-        return response()->json(Plan::all());
+        return response()->json(
+            Plan::ensureDefaults()->map(fn (Plan $plan) => $plan->toApiArray())->values()
+        );
     }
 
     public function initiate(Request $request)
