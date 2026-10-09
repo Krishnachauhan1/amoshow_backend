@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\VideoCollabController;
 use App\Http\Controllers\Api\VideoPurchaseController;
 use App\Http\Controllers\Api\YoutubeCommentController;
 use App\Http\Controllers\Api\YoutubeController;
+use App\Http\Controllers\MediaController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -26,6 +27,7 @@ Route::post('/register-admin', [AdminController::class, 'registerAdmin']);
 
 
 // Public routes
+Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*');
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 Route::get('/videos',    [VideoController::class, 'index']);

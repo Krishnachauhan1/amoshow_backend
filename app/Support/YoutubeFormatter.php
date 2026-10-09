@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
 
 class YoutubeFormatter
 {
@@ -92,36 +91,34 @@ class YoutubeFormatter
             return self::normalizePublicUrl($path);
         }
 
-        $relative = ltrim($path, '/');
-        $prefix   = self::publicStoragePrefix();
-
-        if ($prefix === 'storage') {
-            return self::fixMediaHost(Storage::disk('public')->url($relative));
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if (str_starts_with($relative, 'storage/')) {
+            $relative = substr($relative, strlen('storage/'));
         }
 
-        return self::mediaBaseUrl() . '/' . $prefix . '/' . $relative;
+        return self::mediaServeUrl($relative);
     }
 
-    private static function publicStoragePrefix(): string
+    /**
+     * cPanel docroot is the Laravel root, so /storage/... is not public.
+     * Serve through /index.php/api/media/... which already reaches PHP.
+     */
+    private static function mediaServeUrl(string $relative): string
     {
-        return trim((string) env('PUBLIC_STORAGE_PREFIX', 'storage'), '/');
+        $base = self::mediaBaseUrl();
+        if (! str_contains($base, '/index.php')) {
+            $base .= '/index.php';
+        }
+
+        return $base.'/api/media/'.$relative;
     }
 
     private static function normalizePublicUrl(string $url): string
     {
         $url = self::fixMediaHost($url);
 
-        if (str_contains($url, '/public/storage/')) {
-            $url = str_replace('/public/storage/', '/storage/', $url);
-        }
-
-        if (str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
-            $path  = parse_url($url, PHP_URL_PATH) ?? '';
-            $query = parse_url($url, PHP_URL_QUERY);
-            $url   = self::mediaBaseUrl() . $path;
-            if ($query) {
-                $url .= '?' . $query;
-            }
+        if (preg_match('#/(?:public/)?storage/(.+)$#', $url, $matches)) {
+            return self::mediaServeUrl($matches[1]);
         }
 
         return $url;
