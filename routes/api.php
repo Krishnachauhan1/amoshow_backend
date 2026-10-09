@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\VideoPurchaseController;
 use App\Http\Controllers\Api\YoutubeCommentController;
 use App\Http\Controllers\Api\YoutubeController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\Api\RewardsController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -35,6 +36,7 @@ Route::get('/videos/{video}', [VideoController::class, 'show']);
 Route::get('/home',     [HomeController::class, 'index']);
 Route::get('/search',    SearchController::class);
 Route::get('/plans',     [SubscriptionController::class, 'plans']);
+Route::get('/rewards',   [RewardsController::class, 'show']);
 Route::get('/channels/{channel}', [ChannelController::class, 'show']);
 Route::get('/channels', [ChannelController::class, 'index']);
 
@@ -176,5 +178,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/plans',          [AdminController::class, 'storePlan']);
         Route::put('/plans/{plan}',    [AdminController::class, 'updatePlan']);
         Route::delete('/plans/{plan}', [AdminController::class, 'deletePlan']);
+
+        Route::get('/rewards',  [RewardsController::class, 'show']);
+        Route::put('/rewards',  [RewardsController::class, 'update']);
     });
 });
