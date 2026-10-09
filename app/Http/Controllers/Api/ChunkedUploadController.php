@@ -43,11 +43,17 @@ class ChunkedUploadController extends Controller
             return response()->json(['message' => 'Create a channel first'], 422);
         }
 
+        Storage::disk('local')->makeDirectory('chunks/'.$request->upload_id);
+
         $chunkPath = $request->file('chunk')->storeAs(
             'chunks/' . $request->upload_id,
             'chunk_' . $request->chunk_index,
             'local'
         );
+
+        if (! $chunkPath || ! Storage::disk('local')->exists($chunkPath)) {
+            return response()->json(['message' => 'Could not save upload chunk'], 500);
+        }
 
         UploadChunk::updateOrCreate(
             [
