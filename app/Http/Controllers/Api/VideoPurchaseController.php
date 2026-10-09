@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Video;
 use App\Models\VideoPurchase;
+use App\Support\RazorpayClient;
 use Illuminate\Http\Request;
-use Razorpay\Api\Api;
+use RuntimeException;
 
 class VideoPurchaseController extends Controller
 {
@@ -26,7 +27,7 @@ class VideoPurchaseController extends Controller
 
         if ($video->userHasPurchased($request->user())) {
             return response()->json([
-                'message'       => 'Already purchased',
+                'message' => 'Already purchased',
                 'has_purchased' => true,
             ]);
         }
@@ -34,51 +35,59 @@ class VideoPurchaseController extends Controller
         $price = (float) $video->price;
         $razorpayAmount = (int) round($price * 100);
 
-        $api = new Api(config('services.razorpay.key'), config('services.razorpay.secret'));
-        $order = $api->order->create([
-            'amount'   => $razorpayAmount,
-            'currency' => 'INR',
-            'receipt'  => 'video_' . $video->id . '_' . uniqid(),
-        ]);
+        try {
+            $order = RazorpayClient::createOrder(
+                $razorpayAmount,
+                'video_'.$video->id.'_'.$request->user()->id.'_'.uniqid()
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
 
         VideoPurchase::create([
-            'user_id'        => $request->user()->id,
-            'video_id'       => $video->id,
-            'amount'         => $price,
-            'transaction_id' => $order->id,
-            'status'         => 'pending',
+            'user_id' => $request->user()->id,
+            'video_id' => $video->id,
+            'amount' => $price,
+            'transaction_id' => $order['id'],
+            'status' => 'pending',
+            'gateway' => 'razorpay',
         ]);
 
-        return response()->json([
-            'order_id'    => $order->id,
-            'price'       => $price,
-            'currency'    => 'INR',
-            'video_id'    => $video->id,
-            'video_title' => $video->title,
-        ]);
+        return response()->json(RazorpayClient::checkoutPayload(
+            $order,
+            $price,
+            (string) ($video->title ?: 'Paid video'),
+            [
+                'price' => $price,
+                'video_id' => $video->id,
+                'video_title' => $video->title,
+            ]
+        ));
     }
 
     public function verify(Request $request, Video $video)
     {
         $request->validate([
-            'razorpay_order_id'   => 'required|string',
+            'razorpay_order_id' => 'required|string',
             'razorpay_payment_id' => 'required|string',
-            'razorpay_signature'  => 'required|string',
+            'razorpay_signature' => 'required|string',
         ]);
 
         if ($video->platform !== 'youtube') {
             return response()->json(['message' => 'Not found'], 404);
         }
 
-        $api = new Api(config('services.razorpay.key'), config('services.razorpay.secret'));
-
         try {
-            $api->utility->verifyPaymentSignature([
-                'razorpay_order_id'   => $request->razorpay_order_id,
-                'razorpay_payment_id' => $request->razorpay_payment_id,
-                'razorpay_signature'  => $request->razorpay_signature,
-            ]);
-        } catch (\Exception $e) {
+            $ok = RazorpayClient::verifySignature(
+                $request->razorpay_order_id,
+                $request->razorpay_payment_id,
+                $request->razorpay_signature
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
+
+        if (! $ok) {
             return response()->json(['message' => 'Payment verification failed'], 422);
         }
 
@@ -89,7 +98,7 @@ class VideoPurchaseController extends Controller
 
         if ($purchase->isSuccessful()) {
             return response()->json([
-                'message'       => 'Already purchased',
+                'message' => 'Already purchased',
                 'has_purchased' => true,
             ]);
         }
@@ -99,7 +108,7 @@ class VideoPurchaseController extends Controller
         $video->increment('earnings_paise', (int) round((float) $purchase->amount * 100));
 
         return response()->json([
-            'message'       => 'Payment successful. You can now watch this video.',
+            'message' => 'Payment successful. You can now watch this video.',
             'has_purchased' => true,
         ]);
     }
