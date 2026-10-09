@@ -39,7 +39,7 @@ class VideoProbe
 
     private static function ffprobeDuration(string $path): ?int
     {
-        $ffprobe = trim((string) @shell_exec('command -v ffprobe 2>/dev/null'));
+        $ffprobe = trim((string) (SafeShell::exec('command -v ffprobe 2>/dev/null') ?? ''));
 
         if ($ffprobe === '') {
             return null;
@@ -51,7 +51,7 @@ class VideoProbe
             escapeshellarg($path)
         );
 
-        $output = @shell_exec($cmd);
+        $output = SafeShell::exec($cmd);
 
         if ($output === null || trim($output) === '') {
             return null;

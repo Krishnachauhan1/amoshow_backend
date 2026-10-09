@@ -21,7 +21,7 @@ class VideoThumbnail
             $candidates[] = $home . '/bin/ffmpeg';
         }
 
-        $found = trim((string) @shell_exec('command -v ffmpeg 2>/dev/null'));
+        $found = trim((string) (SafeShell::exec('command -v ffmpeg 2>/dev/null') ?? ''));
         if ($found !== '') {
             array_unshift($candidates, $found);
         }
@@ -38,7 +38,7 @@ class VideoThumbnail
     {
         foreach (self::ffmpegCandidates() as $binary) {
             if ($binary === 'ffmpeg' || str_starts_with($binary, '/')) {
-                $check = @shell_exec('command -v ' . escapeshellarg($binary) . ' 2>/dev/null');
+                $check = SafeShell::exec('command -v ' . escapeshellarg($binary) . ' 2>/dev/null');
                 if ($check !== null && trim($check) !== '') {
                     return trim($check);
                 }
@@ -80,7 +80,7 @@ class VideoThumbnail
             escapeshellarg($thumbFull)
         );
 
-        exec($cmd, $output, $exitCode);
+        $exitCode = SafeShell::run($cmd);
 
         if ($exitCode !== 0 || !is_file($thumbFull) || filesize($thumbFull) < 100) {
             if (is_file($thumbFull)) {
