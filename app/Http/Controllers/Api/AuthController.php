@@ -87,14 +87,26 @@ class AuthController extends Controller
             $data = $request->validate([
                 'name'   => 'sometimes|required|string|max:255',
                 'email'  => 'sometimes|required|email|unique:users,email,' . $user->id,
-                'avatar' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
+                'avatar' => 'nullable|file|max:5120',
             ]);
 
             if ($request->hasFile('avatar')) {
+                $file = $request->file('avatar');
+                $ext = $this->detectImageExtension($file);
+                if ($ext === null) {
+                    return response()->json([
+                        'message' => 'Avatar must be a jpg, jpeg, png, or webp image.',
+                        'errors' => ['avatar' => ['The avatar must be a jpg, jpeg, png, or webp image.']],
+                    ], 422);
+                }
                 if ($user->avatar) {
                     Storage::disk('public')->delete($user->avatar);
                 }
-                $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
+                $data['avatar'] = $file->storeAs(
+                    'avatars',
+                    uniqid('avatar_', true).'.'.$ext,
+                    'public'
+                );
             }
 
             unset($data['avatar_file']);
@@ -118,6 +130,34 @@ class AuthController extends Controller
                     : $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function detectImageExtension(\Illuminate\Http\UploadedFile $file): ?string
+    {
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            return $ext === 'jpeg' ? 'jpg' : $ext;
+        }
+
+        $path = $file->getRealPath();
+        if (! is_string($path) || $path === '' || ! is_readable($path)) {
+            return null;
+        }
+
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            return null;
+        }
+        $head = bin2hex((string) fread($handle, 16));
+        fclose($handle);
+
+        return match (true) {
+            str_starts_with($head, 'ffd8ff') => 'jpg',
+            str_starts_with($head, '89504e47') => 'png',
+            str_contains($head, '57454250') => 'webp',
+            str_starts_with($head, '47494638') => 'gif',
+            default => null,
+        };
     }
 
     private function formatUserResponse(User $user): array
