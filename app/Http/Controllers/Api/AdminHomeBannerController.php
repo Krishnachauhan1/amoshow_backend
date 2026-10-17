@@ -35,20 +35,32 @@ class AdminHomeBannerController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string|max:500',
-            'image' => 'required|file|image|max:4096',
+            'image' => 'required|file|max:10240',
             'link_url' => 'nullable|url|max:500',
             'sort_order' => 'nullable|integer|min:0',
-            'is_active' => 'nullable|boolean',
+            'is_active' => 'nullable|in:0,1,true,false',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'message' => 'Validation failed',
+                'message' => $validator->errors()->first() ?: 'Validation failed',
                 'errors' => $validator->errors(),
             ], 422);
         }
 
-        $path = $request->file('image')->store('home-banners', 'public');
+        $file = $request->file('image');
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            return response()->json([
+                'message' => 'Image must be jpg, jpeg, png, webp, or gif.',
+            ], 422);
+        }
+
+        $path = $file->storeAs(
+            'home-banners',
+            uniqid('banner_', true).'.'.$ext,
+            'public'
+        );
 
         $banner = HomeBanner::create([
             'title' => $request->title,
@@ -67,15 +79,26 @@ class AdminHomeBannerController extends Controller
         $data = $request->validate([
             'title' => 'sometimes|string|max:255',
             'subtitle' => 'nullable|string|max:500',
-            'image' => 'sometimes|file|image|max:4096',
+            'image' => 'sometimes|file|max:10240',
             'link_url' => 'nullable|url|max:500',
             'sort_order' => 'sometimes|integer|min:0',
-            'is_active' => 'sometimes|boolean',
+            'is_active' => 'sometimes|in:0,1,true,false',
         ]);
 
         if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $ext = strtolower((string) $file->getClientOriginalExtension());
+            if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                return response()->json([
+                    'message' => 'Image must be jpg, jpeg, png, webp, or gif.',
+                ], 422);
+            }
             Storage::disk('public')->delete($homeBanner->image_path);
-            $data['image_path'] = $request->file('image')->store('home-banners', 'public');
+            $data['image_path'] = $file->storeAs(
+                'home-banners',
+                uniqid('banner_', true).'.'.$ext,
+                'public'
+            );
         }
 
         unset($data['image']);
