@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HomeSectionLayout;
 use App\Support\HomeContentSections;
 use App\Support\HomeSectionLayoutResolver;
+use App\Support\UploadedMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -128,23 +129,46 @@ class AdminHomeContentController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'video' => 'required|file|mimes:mp4,mov,avi,mkv,webm,quicktime|max:512000',
-            'thumbnail' => 'nullable|image|max:4096',
+            'video' => 'required|file|max:512000',
+            'thumbnail' => 'nullable|file|max:10240',
             'sort_order' => 'nullable|integer|min:0',
-            'is_active' => 'nullable|boolean',
+            'is_active' => 'nullable|in:0,1,true,false',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first() ?: 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $video = $request->file('video');
+        $videoExt = UploadedMedia::videoExtension($video);
+        if ($videoExt === null) {
+            return response()->json([
+                'message' => 'Video must be mp4, mov, avi, mkv, or webm.',
+                'errors' => ['video' => ['Video must be mp4, mov, avi, mkv, or webm.']],
+            ], 422);
+        }
+
+        $thumbExt = null;
+        if ($request->hasFile('thumbnail')) {
+            $thumbExt = UploadedMedia::imageExtension($request->file('thumbnail'));
+            if ($thumbExt === null) {
+                return response()->json([
+                    'message' => 'Thumbnail must be jpg, jpeg, png, webp, or gif.',
+                    'errors' => ['thumbnail' => ['Thumbnail must be jpg, jpeg, png, webp, or gif.']],
+                ], 422);
+            }
         }
 
         $folder = str_replace('_', '-', $config['table']);
-        $videoPath = $request->file('video')->store("home-content/{$folder}", 'public');
+        $videoPath = UploadedMedia::store($video, "home-content/{$folder}", 'video_', $videoExt);
         if (!$videoPath) {
             return response()->json(['message' => 'Could not save video. Check storage permissions.'], 500);
         }
-        $thumbPath = $request->hasFile('thumbnail')
-            ? $request->file('thumbnail')->store("home-content/{$folder}/thumbnails", 'public')
+        $thumbPath = $thumbExt
+            ? UploadedMedia::store($request->file('thumbnail'), "home-content/{$folder}/thumbnails", 'thumb_', $thumbExt)
             : null;
 
         /** @var Model $model */
@@ -166,18 +190,30 @@ class AdminHomeContentController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'required|file|image|max:4096',
+            'image' => 'required|file|max:10240',
             'action_url' => 'required|url|max:500',
             'sort_order' => 'nullable|integer|min:0',
-            'is_active' => 'nullable|boolean',
+            'is_active' => 'nullable|in:0,1,true,false',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first() ?: 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $image = $request->file('image');
+        $imageExt = UploadedMedia::imageExtension($image);
+        if ($imageExt === null) {
+            return response()->json([
+                'message' => 'Image must be jpg, jpeg, png, webp, or gif.',
+                'errors' => ['image' => ['Image must be jpg, jpeg, png, webp, or gif.']],
+            ], 422);
         }
 
         $folder = str_replace('_', '-', $config['table']);
-        $imagePath = $request->file('image')->store("home-content/{$folder}", 'public');
+        $imagePath = UploadedMedia::store($image, "home-content/{$folder}", 'image_', $imageExt);
 
         /** @var Model $model */
         $model = $config['model'];
