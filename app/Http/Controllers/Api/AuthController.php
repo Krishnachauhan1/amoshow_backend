@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Referral;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,13 +14,23 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $data = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
-            'password' => 'required|min:8|confirmed',
+            'name'           => 'required|string|max:255',
+            'email'          => 'required|email|unique:users',
+            'password'       => 'required|min:8|confirmed',
+            'referral_code'  => 'nullable|string|max:40',
         ]);
+
+        $referralCode = $data['referral_code'] ?? $request->cookie('amoshwz_ref');
+        unset($data['referral_code']);
 
         $user  = User::create($data);
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        try {
+            Referral::attach($user, $referralCode);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         try {
             $user->channel()->create([
@@ -30,7 +41,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'user'  => $user,
+            'user'  => $this->formatUserResponse($user->fresh()),
             'token' => $token,
         ], 201);
     }
@@ -60,7 +71,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'user'  => $user,
+            'user'  => $this->formatUserResponse($user),
             'token' => $token,
         ]);
     }
@@ -171,6 +182,13 @@ class AuthController extends Controller
 
         $payload = $user->toArray();
         $payload['avatar_url'] = \App\Support\YoutubeFormatter::storageUrl($user->avatar);
+        $payload['referral_code'] = Referral::codeFor($user);
+        $payload['referral_link'] = Referral::linkFor($user, request());
+        try {
+            $payload['referral_count'] = Referral::countFor($user);
+        } catch (\Throwable) {
+            $payload['referral_count'] = 0;
+        }
 
         return $payload;
     }

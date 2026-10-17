@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Channel;
 use App\Models\Plan;
+use App\Models\Referral;
 use App\Models\Video;
 use App\Support\YoutubeFormatter;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class LandingController extends Controller
 {
@@ -19,6 +22,24 @@ class LandingController extends Controller
             'channels' => $this->safeCollect(fn () => $this->channels()),
             'plans' => $this->safeCollect(fn () => $this->plans()),
         ]);
+    }
+
+    public function referral(Request $request, string $code): Response
+    {
+        $code = Referral::normalizeCode($code);
+        $referrer = Referral::findReferrer($code);
+
+        $response = response()->view('referral', [
+            'code' => $code !== '' ? $code : 'AM',
+            'referrerName' => $referrer?->name ?? 'A creator',
+            'valid' => $referrer !== null,
+        ]);
+
+        if ($referrer) {
+            $response->cookie('amoshwz_ref', Referral::codeFor($referrer), 60 * 24 * 30);
+        }
+
+        return $response;
     }
 
     private function featuredVideos()
