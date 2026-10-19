@@ -24,6 +24,59 @@ class LandingController extends Controller
         ]);
     }
 
+    public function watch(string $id): Response
+    {
+        $video = $this->findVideo($id);
+
+        return $this->openAppResponse(
+            kind: 'watch',
+            id: $id,
+            title: $video?->title ?? 'Watch on AMOSHWZ',
+            thumbnail: YoutubeFormatter::storageUrl($video?->thumbnail),
+        );
+    }
+
+    public function short(string $id): Response
+    {
+        $video = $this->findVideo($id);
+
+        return $this->openAppResponse(
+            kind: 'shorts',
+            id: $id,
+            title: $video?->title ?? 'Watch this short on AMOSHWZ',
+            thumbnail: YoutubeFormatter::storageUrl($video?->thumbnail),
+        );
+    }
+
+    public function wellKnownAssetLinks(): Response
+    {
+        return response()->json([
+            [
+                'relation' => ['delegate_permission/common.handle_all_urls'],
+                'target' => [
+                    'namespace' => 'android_app',
+                    'package_name' => 'com.amoshwz',
+                    'sha256_cert_fingerprints' => [
+                        'REPLACE_WITH_UPLOAD_KEYSTORE_SHA256',
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function wellKnownAppleAppSite(): Response
+    {
+        return response()->json([
+            'applinks' => [
+                'apps' => [],
+                'details' => [[
+                    'appID' => 'D2C6ZJ6XPC.com.amoshwz',
+                    'paths' => ['/watch/*', '/shorts/*', '/ref/*'],
+                ]],
+            ],
+        ]);
+    }
+
     public function referral(Request $request, string $code): Response
     {
         $code = Referral::normalizeCode($code);
@@ -40,6 +93,32 @@ class LandingController extends Controller
         }
 
         return $response;
+    }
+
+    private function findVideo(string $id): ?Video
+    {
+        if (! Schema::hasTable('videos') || ! ctype_digit($id)) {
+            return null;
+        }
+
+        try {
+            return Video::query()->find((int) $id);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function openAppResponse(string $kind, string $id, string $title, ?string $thumbnail): Response
+    {
+        return response()->view('open_app', [
+            'kind' => $kind,
+            'id' => $id,
+            'title' => $title,
+            'thumbnail' => $thumbnail,
+            'appUri' => 'amoshwz://'.$kind.'/'.$id,
+            'playStoreUrl' => 'https://play.google.com/store/apps/details?id=com.amoshwz',
+            'appStoreUrl' => 'https://apps.apple.com/app/amoshwz',
+        ]);
     }
 
     private function featuredVideos()
