@@ -82,10 +82,14 @@ class LandingController extends Controller
         $code = Referral::normalizeCode($code);
         $referrer = Referral::findReferrer($code);
 
+        $safeCode = $code !== '' ? $code : 'AM';
         $response = response()->view('referral', [
-            'code' => $code !== '' ? $code : 'AM',
+            'code' => $safeCode,
             'referrerName' => $referrer?->name ?? 'A creator',
             'valid' => $referrer !== null,
+            'appUri' => 'amoshwz://ref/'.$safeCode,
+            'playStoreUrl' => 'https://play.google.com/store/apps/details?id=com.amoshwz',
+            'appStoreUrl' => 'https://apps.apple.com/app/amoshwz',
         ]);
 
         if ($referrer) {

@@ -21,7 +21,7 @@
                     </h1>
                     <p>
                         @if ($valid)
-                            Open the AMOSHWZ app and create an account with this code so {{ $referrerName }} gets credit.
+                            Opening the AMOSHWZ app so you can sign up with this code. {{ $referrerName }} will get credit.
                         @else
                             This invite link is missing a valid code. You can still download AMOSHWZ and sign up.
                         @endif
@@ -34,8 +34,8 @@
                         <button type="button" class="btn btn-light" data-copy-code="{{ $code }}">Copy code</button>
                     </div>
                     <div class="cta-actions">
-                        <a class="btn btn-brand" href="{{ url('/') }}">Open AMOSHWZ</a>
-                        <a class="btn btn-ghost" href="{{ url('/') }}#plans">See plans</a>
+                        <a class="btn btn-brand" id="open-app" href="{{ $appUri }}">Open app and sign up</a>
+                        <a class="btn btn-ghost" id="store-link" href="{{ $playStoreUrl }}">Get the app</a>
                     </div>
                 </div>
             </div>
@@ -52,6 +52,33 @@
                 setTimeout(function () { btn.textContent = 'Copy code'; }, 1600);
             });
         });
+
+        (function () {
+            var appUri = @json($appUri);
+            var playStore = @json($playStoreUrl);
+            var appStore = @json($appStoreUrl);
+            var code = @json($code);
+            var isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            var isAndroid = /Android/i.test(navigator.userAgent);
+            var store = isIos ? appStore : playStore;
+            var storeLink = document.getElementById('store-link');
+            if (storeLink) storeLink.href = store;
+
+            var intentUri = 'intent://ref/' + encodeURIComponent(code) +
+                '#Intent;scheme=amoshwz;package=com.amoshwz;S.browser_fallback_url=' +
+                encodeURIComponent(window.location.href) + ';end';
+            var openHref = isAndroid ? intentUri : appUri;
+            var openBtn = document.getElementById('open-app');
+            if (openBtn) openBtn.href = openHref;
+
+            var leftPage = false;
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) leftPage = true;
+            });
+            window.addEventListener('pagehide', function () { leftPage = true; });
+
+            window.location.href = openHref;
+        })();
     </script>
 </body>
 </html>
