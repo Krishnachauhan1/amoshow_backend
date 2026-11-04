@@ -14,7 +14,7 @@
         </div>
 
         @if (($tab ?? 'login') === 'register')
-            <form method="POST" action="{{ route('studio.register.store') }}" class="studio-card studio-form">
+            <form method="POST" action="{{ url()->current() }}" class="studio-card studio-form">
                 @csrf
                 <label>
                     Full name
@@ -39,7 +39,7 @@
                 <button type="submit" class="btn btn-brand btn-block">Create account</button>
             </form>
         @else
-            <form method="POST" action="{{ route('studio.login.store') }}" class="studio-card studio-form">
+            <form method="POST" action="{{ url()->current() }}" class="studio-card studio-form">
                 @csrf
                 <label>
                     Email

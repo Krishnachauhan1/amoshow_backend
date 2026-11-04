@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\FixSessionCookie::class);
         $middleware->prepend(\App\Http\Middleware\RestoreAuthorizationHeader::class);
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
@@ -27,5 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('studio.index'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if ($response->getStatusCode() === 419 && ! $request->expectsJson()) {
+                return redirect()
+                    ->route('studio.login')
+                    ->withErrors(['email' => 'Session expired. Please try again.']);
+            }
+
+            return $response;
+        });
     })->create();
