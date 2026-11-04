@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\IsAdmin::class,
             'optional.auth' => \App\Http\Middleware\OptionalSanctumAuth::class,
         ]);
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+
+            return route('studio.login');
+        });
+        $middleware->redirectUsersTo(fn () => route('studio.index'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

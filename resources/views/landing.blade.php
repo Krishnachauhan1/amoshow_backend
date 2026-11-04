@@ -64,10 +64,11 @@
                 <a href="#features">Features</a>
                 <a href="#creators">Creators</a>
                 <a href="#plans">Plans</a>
+                <a href="{{ url('/studio') }}">Studio</a>
             </nav>
             <div class="header-actions">
-                <a href="{{ $watchUrl }}">Open app</a>
-                <a class="btn btn-brand" href="#plans" style="padding: 8px 20px;">Get Premium</a>
+                <a href="{{ url('/studio/login') }}">Log in</a>
+                <a class="btn btn-brand" href="{{ url('/studio/upload') }}" style="padding: 8px 20px;">Upload</a>
             </div>
             <button type="button" class="menu-btn" data-menu-button aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
                 <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -81,6 +82,8 @@
                 <a href="#features">Features</a>
                 <a href="#creators">Creators</a>
                 <a href="#plans">Plans</a>
+                <a href="{{ url('/studio') }}">Studio</a>
+                <a href="{{ url('/studio/login') }}">Log in</a>
                 <a href="{{ $watchUrl }}">Open app</a>
             </div>
         </div>
