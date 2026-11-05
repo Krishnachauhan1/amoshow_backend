@@ -106,4 +106,35 @@ class Referral extends Model
 
         return static::query()->where('referrer_id', $user->id)->count();
     }
+
+    public static function peopleFor(User $user): array
+    {
+        static::ensureTable();
+
+        $rows = static::query()
+            ->where('referrer_id', $user->id)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $people = User::query()
+            ->whereIn('id', $rows->pluck('referred_id'))
+            ->get()
+            ->keyBy('id');
+
+        return $rows->map(function (self $row) use ($people) {
+            $person = $people->get($row->referred_id);
+
+            return [
+                'id' => (int) $row->referred_id,
+                'name' => $person?->name ?: 'AMOSHWZ user',
+                'email' => $person?->email,
+                'avatar_url' => \App\Support\YoutubeFormatter::storageUrl($person?->avatar),
+                'joined_at' => optional($row->created_at)?->toIso8601String(),
+            ];
+        })->values()->all();
+    }
 }

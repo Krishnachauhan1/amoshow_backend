@@ -73,7 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me',      [AuthController::class, 'me']);
+    Route::get('/me',         [AuthController::class, 'me']);
+    Route::get('/referrals',  [AuthController::class, 'referrals']);
     Route::post('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/profile/update', [AuthController::class, 'updateProfile']);
     Route::match(['put', 'patch'], '/profile', [AuthController::class, 'updateProfile']);

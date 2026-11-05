@@ -90,6 +90,24 @@ class AuthController extends Controller
         );
     }
 
+    public function referrals(Request $request)
+    {
+        $user = $request->user();
+
+        try {
+            $people = Referral::peopleFor($user);
+        } catch (\Throwable $e) {
+            report($e);
+            $people = [];
+        }
+
+        return response()->json([
+            'referral_code' => Referral::codeFor($user),
+            'referral_count' => count($people),
+            'referrals' => $people,
+        ]);
+    }
+
     public function updateProfile(Request $request)
     {
         try {
@@ -185,9 +203,12 @@ class AuthController extends Controller
         $payload['referral_code'] = Referral::codeFor($user);
         $payload['referral_link'] = Referral::linkFor($user, request());
         try {
-            $payload['referral_count'] = Referral::countFor($user);
+            $people = Referral::peopleFor($user);
+            $payload['referral_count'] = count($people);
+            $payload['referrals'] = $people;
         } catch (\Throwable) {
             $payload['referral_count'] = 0;
+            $payload['referrals'] = [];
         }
 
         return $payload;
