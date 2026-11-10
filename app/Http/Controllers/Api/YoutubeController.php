@@ -9,16 +9,19 @@ use App\Models\Channel;
 use App\Models\ChannelSubscription;
 use App\Models\ExploreSection;
 use App\Models\Plan;
+use App\Models\Referral;
 use App\Models\ShortLike;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoCollaborator;
+use App\Models\VideoPurchase;
 use App\Notifications\VideoCollabInviteNotification;
 use App\Models\YoutubeCategory;
 use App\Support\ChunkAssembler;
 use App\Support\VideoProbe;
 use App\Support\YoutubeFormatter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class YoutubeController extends Controller
 {
@@ -257,15 +260,47 @@ class YoutubeController extends Controller
 
     public function profileEarnings(Request $request)
     {
-        $channel = $request->user()->channel;
+        $user = $request->user();
+        $channel = $user->channel;
+        try {
+            $referral = Referral::earningsSummaryFor($user);
+        } catch (\Throwable $e) {
+            report($e);
+            $referral = [
+                'bonus_paise' => 0,
+                'earnings' => YoutubeFormatter::earnings(0),
+                'platform_percent' => 40,
+                'referral_percent' => 5,
+            ];
+        }
+        $referralPaise = (int) $referral['bonus_paise'];
 
         if (!$channel) {
-            return response()->json(['total' => '₹0', 'breakdown' => []]);
+            return response()->json([
+                'total' => YoutubeFormatter::earnings($referralPaise),
+                'ad' => YoutubeFormatter::earnings(0),
+                'paid' => YoutubeFormatter::earnings(0),
+                'referral' => $referral['earnings'],
+                'referral_paise' => $referralPaise,
+                'platform_percent' => $referral['platform_percent'],
+                'referral_percent' => $referral['referral_percent'],
+                'video_count' => 0,
+                'period' => 'All time',
+                'breakdown' => [],
+            ]);
         }
 
         $videos = $channel->videos()->youtube()->get();
-
-        $totalPaise = $videos->sum('earnings_paise');
+        $creatorPaise = (int) $videos->sum('earnings_paise');
+        $paidPaise = 0;
+        if (Schema::hasTable('video_purchases')) {
+            $paidPaise = (int) round((float) VideoPurchase::query()
+                ->where('status', 'success')
+                ->whereIn('video_id', $videos->pluck('id'))
+                ->sum('amount') * 100);
+        }
+        $adPaise = max(0, $creatorPaise - $paidPaise);
+        $totalPaise = $creatorPaise + $referralPaise;
 
         $breakdown = $videos->map(fn ($v) => [
             'title'    => $v->title,
@@ -274,7 +309,15 @@ class YoutubeController extends Controller
         ]);
 
         return response()->json([
-            'total'     => YoutubeFormatter::earnings((int) $totalPaise),
+            'total'     => YoutubeFormatter::earnings($totalPaise),
+            'ad' => YoutubeFormatter::earnings($adPaise),
+            'paid' => YoutubeFormatter::earnings($paidPaise),
+            'referral' => $referral['earnings'],
+            'referral_paise' => $referralPaise,
+            'platform_percent' => $referral['platform_percent'],
+            'referral_percent' => $referral['referral_percent'],
+            'video_count' => $videos->count(),
+            'period' => 'All time',
             'breakdown' => $breakdown,
         ]);
     }
@@ -452,8 +495,11 @@ class YoutubeController extends Controller
         $video->increment('views_count');
 
         $views = (int) $video->views_count;
-        $earningsPaise = (int) round($views * 0.35);
-        $video->update(['earnings_paise' => $earningsPaise]);
+        $deltaPaise = (int) round($views * 0.35) - (int) round(max($views - 1, 0) * 0.35);
+        if ($deltaPaise > 0) {
+            $video->increment('earnings_paise', $deltaPaise);
+        }
+        $earningsPaise = (int) $video->earnings_paise;
 
         return response()->json([
             'views_count' => $views,

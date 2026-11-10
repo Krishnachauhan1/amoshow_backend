@@ -58,9 +58,12 @@ class YoutubeFormatter
 
     public static function earnings(int $paise): string
     {
-        $rupees = (int) round($paise / 100);
+        $rupees = $paise / 100;
+        if (abs($rupees - round($rupees)) < 0.005) {
+            return '₹'.number_format((int) round($rupees));
+        }
 
-        return '₹' . number_format($rupees);
+        return '₹'.number_format($rupees, 2);
     }
 
     public static function price(float $amount): string

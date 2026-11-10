@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\YoutubeFormatter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -125,16 +126,86 @@ class Referral extends Model
             ->get()
             ->keyBy('id');
 
-        return $rows->map(function (self $row) use ($people) {
+        $grossByUser = static::grossPaiseByUser($rows->pluck('referred_id'));
+
+        return $rows->map(function (self $row) use ($people, $grossByUser) {
             $person = $people->get($row->referred_id);
+            $grossPaise = (int) ($grossByUser[(int) $row->referred_id] ?? 0);
+            $bonusPaise = static::bonusFromGross($grossPaise);
 
             return [
                 'id' => (int) $row->referred_id,
                 'name' => $person?->name ?: 'AMOSHWZ user',
                 'email' => $person?->email,
-                'avatar_url' => \App\Support\YoutubeFormatter::storageUrl($person?->avatar),
+                'avatar_url' => YoutubeFormatter::storageUrl($person?->avatar),
                 'joined_at' => optional($row->created_at)?->toIso8601String(),
+                'earnings' => YoutubeFormatter::earnings($bonusPaise),
+                'earnings_paise' => $bonusPaise,
             ];
         })->values()->all();
+    }
+
+    public static function rates(): array
+    {
+        static $cached = null;
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $map = AppSetting::asMap();
+
+        return $cached = [
+            'platform' => (float) ($map['platform_share_percent'] ?? 40),
+            'referral' => (float) ($map['referral_percent_of_platform'] ?? 5),
+        ];
+    }
+
+    public static function bonusFromGross(int $grossPaise): int
+    {
+        if ($grossPaise <= 0) {
+            return 0;
+        }
+
+        $rates = static::rates();
+
+        return (int) round(
+            $grossPaise * ($rates['platform'] / 100) * ($rates['referral'] / 100)
+        );
+    }
+
+    public static function grossPaiseByUser(iterable $userIds): array
+    {
+        $ids = collect($userIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty() || ! Schema::hasTable('videos') || ! Schema::hasTable('channels')) {
+            return [];
+        }
+
+        return Video::query()
+            ->join('channels', 'channels.id', '=', 'videos.channel_id')
+            ->whereIn('channels.user_id', $ids)
+            ->groupBy('channels.user_id')
+            ->selectRaw('channels.user_id, COALESCE(SUM(videos.earnings_paise), 0) as gross')
+            ->pluck('gross', 'user_id')
+            ->map(fn ($gross) => (int) $gross)
+            ->all();
+    }
+
+    public static function earningsSummaryFor(User $user): array
+    {
+        static::ensureTable();
+
+        $rates = static::rates();
+        $referredIds = static::query()->where('referrer_id', $user->id)->pluck('referred_id');
+        $grossByUser = static::grossPaiseByUser($referredIds);
+        $grossPaise = (int) array_sum($grossByUser);
+        $bonusPaise = static::bonusFromGross($grossPaise);
+
+        return [
+            'gross_paise' => $grossPaise,
+            'bonus_paise' => $bonusPaise,
+            'platform_percent' => $rates['platform'],
+            'referral_percent' => $rates['referral'],
+            'earnings' => YoutubeFormatter::earnings($bonusPaise),
+        ];
     }
 }

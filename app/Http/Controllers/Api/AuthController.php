@@ -96,15 +96,26 @@ class AuthController extends Controller
 
         try {
             $people = Referral::peopleFor($user);
+            $summary = Referral::earningsSummaryFor($user);
         } catch (\Throwable $e) {
             report($e);
             $people = [];
+            $summary = [
+                'earnings' => '₹0',
+                'bonus_paise' => 0,
+                'platform_percent' => 40,
+                'referral_percent' => 5,
+            ];
         }
 
         return response()->json([
             'referral_code' => Referral::codeFor($user),
             'referral_count' => count($people),
             'referrals' => $people,
+            'referral_earnings' => $summary['earnings'],
+            'referral_earnings_paise' => $summary['bonus_paise'],
+            'platform_percent' => $summary['platform_percent'],
+            'referral_percent' => $summary['referral_percent'],
         ]);
     }
 
@@ -206,9 +217,14 @@ class AuthController extends Controller
             $people = Referral::peopleFor($user);
             $payload['referral_count'] = count($people);
             $payload['referrals'] = $people;
+            $summary = Referral::earningsSummaryFor($user);
+            $payload['referral_earnings'] = $summary['earnings'];
+            $payload['referral_earnings_paise'] = $summary['bonus_paise'];
         } catch (\Throwable) {
             $payload['referral_count'] = 0;
             $payload['referrals'] = [];
+            $payload['referral_earnings'] = '₹0';
+            $payload['referral_earnings_paise'] = 0;
         }
 
         return $payload;
