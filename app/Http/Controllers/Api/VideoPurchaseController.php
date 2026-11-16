@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Video;
 use App\Models\VideoPurchase;
-use App\Support\RazorpayClient;
+use App\Support\CashfreeClient;
 use Illuminate\Http\Request;
 use RuntimeException;
 
@@ -33,12 +33,14 @@ class VideoPurchaseController extends Controller
         }
 
         $price = (float) $video->price;
-        $razorpayAmount = (int) round($price * 100);
+        $orderId = CashfreeClient::newOrderId('VID'.$video->id.'U'.$request->user()->id);
 
         try {
-            $order = RazorpayClient::createOrder(
-                $razorpayAmount,
-                'video_'.$video->id.'_'.$request->user()->id.'_'.uniqid()
+            $order = CashfreeClient::createOrder(
+                $price,
+                $orderId,
+                $request->user(),
+                (string) ($video->title ?: 'Paid video')
             );
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
@@ -50,10 +52,10 @@ class VideoPurchaseController extends Controller
             'amount' => $price,
             'transaction_id' => $order['id'],
             'status' => 'pending',
-            'gateway' => 'razorpay',
+            'gateway' => 'cashfree',
         ]);
 
-        return response()->json(RazorpayClient::checkoutPayload(
+        return response()->json(CashfreeClient::checkoutPayload(
             $order,
             $price,
             (string) ($video->title ?: 'Paid video'),
@@ -68,21 +70,18 @@ class VideoPurchaseController extends Controller
     public function verify(Request $request, Video $video)
     {
         $request->validate([
-            'razorpay_order_id' => 'required|string',
-            'razorpay_payment_id' => 'required|string',
-            'razorpay_signature' => 'required|string',
+            'order_id' => 'required_without:cashfree_order_id|string|nullable',
+            'cashfree_order_id' => 'required_without:order_id|string|nullable',
         ]);
 
         if ($video->platform !== 'youtube') {
             return response()->json(['message' => 'Not found'], 404);
         }
 
+        $orderId = (string) ($request->input('order_id') ?: $request->input('cashfree_order_id'));
+
         try {
-            $ok = RazorpayClient::verifySignature(
-                $request->razorpay_order_id,
-                $request->razorpay_payment_id,
-                $request->razorpay_signature
-            );
+            $ok = CashfreeClient::orderIsPaid($orderId);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
         }
@@ -91,7 +90,7 @@ class VideoPurchaseController extends Controller
             return response()->json(['message' => 'Payment verification failed'], 422);
         }
 
-        $purchase = VideoPurchase::where('transaction_id', $request->razorpay_order_id)
+        $purchase = VideoPurchase::where('transaction_id', $orderId)
             ->where('video_id', $video->id)
             ->where('user_id', $request->user()->id)
             ->firstOrFail();

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Plan;
-use App\Support\RazorpayClient;
+use App\Support\CashfreeClient;
 use Illuminate\Http\Request;
 use RuntimeException;
 
@@ -25,12 +25,15 @@ class SubscriptionController extends Controller
         ]);
 
         $plan = Plan::findOrFail($request->plan_id);
-        $amountPaise = (int) round(((float) $plan->price) * 100);
+        $amount = (float) $plan->price;
+        $orderId = CashfreeClient::newOrderId('PLAN'.$plan->id.'U'.$request->user()->id);
 
         try {
-            $order = RazorpayClient::createOrder(
-                $amountPaise,
-                'plan_'.$plan->id.'_'.$request->user()->id.'_'.uniqid()
+            $order = CashfreeClient::createOrder(
+                $amount,
+                $orderId,
+                $request->user(),
+                (string) ($plan->name ?: 'AMOSHWZ Membership')
             );
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
@@ -42,12 +45,12 @@ class SubscriptionController extends Controller
             'transaction_id' => $order['id'],
             'amount' => $plan->price,
             'status' => 'pending',
-            'gateway' => 'razorpay',
+            'gateway' => 'cashfree',
         ]);
 
-        return response()->json(RazorpayClient::checkoutPayload(
+        return response()->json(CashfreeClient::checkoutPayload(
             $order,
-            (float) $plan->price,
+            $amount,
             (string) ($plan->name ?: 'AMOSHWZ Membership'),
             ['plan_id' => $plan->id]
         ));
@@ -56,17 +59,14 @@ class SubscriptionController extends Controller
     public function verify(Request $request)
     {
         $request->validate([
-            'razorpay_order_id' => 'required|string',
-            'razorpay_payment_id' => 'required|string',
-            'razorpay_signature' => 'required|string',
+            'order_id' => 'required_without:cashfree_order_id|string|nullable',
+            'cashfree_order_id' => 'required_without:order_id|string|nullable',
         ]);
 
+        $orderId = (string) ($request->input('order_id') ?: $request->input('cashfree_order_id'));
+
         try {
-            $ok = RazorpayClient::verifySignature(
-                $request->razorpay_order_id,
-                $request->razorpay_payment_id,
-                $request->razorpay_signature
-            );
+            $ok = CashfreeClient::orderIsPaid($orderId);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
         }
@@ -75,7 +75,7 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Payment verification failed'], 422);
         }
 
-        $payment = Payment::where('transaction_id', $request->razorpay_order_id)
+        $payment = Payment::where('transaction_id', $orderId)
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
