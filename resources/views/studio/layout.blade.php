@@ -47,6 +47,11 @@
             @yield('content')
         </div>
     </main>
+    <footer class="site-footer">
+        <div class="wrap footer-inner">
+            <p>© {{ date('Y') }} YYC SocialMedia. AMShow is a YYC SocialMedia product.</p>
+        </div>
+    </footer>
     @yield('scripts')
 </body>
 </html>

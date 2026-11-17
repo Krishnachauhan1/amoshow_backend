@@ -337,7 +337,7 @@
                 <a href="{{ url('/privacy.html') }}">Privacy Policy</a>
                 <a href="{{ url('/delete-account.html') }}">Delete Account</a>
             </div>
-            <p>© {{ date('Y') }} AMShow. Movies, shorts, music, and makers — in one place.</p>
+            <p>© {{ date('Y') }} YYC SocialMedia. AMShow is a YYC SocialMedia product.</p>
         </div>
     </footer>
 
