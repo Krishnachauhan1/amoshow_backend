@@ -71,6 +71,8 @@ class AdminController extends Controller
 
     public function videos(Request $request)
     {
+        Video::ensureShowOnHomeColumn();
+
         $videos = Video::with('channel.user')
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->latest()
@@ -84,6 +86,24 @@ class AdminController extends Controller
         $request->validate(['status' => 'required|in:published,draft,processing']);
         $video->update(['status' => $request->status]);
         return response()->json(['message' => 'Status updated', 'video' => $video]);
+    }
+
+    public function updateVideoHome(Request $request, Video $video)
+    {
+        Video::ensureShowOnHomeColumn();
+
+        $request->validate([
+            'show_on_home' => 'required|boolean',
+        ]);
+
+        $video->update(['show_on_home' => $request->boolean('show_on_home')]);
+
+        return response()->json([
+            'message' => $video->show_on_home
+                ? 'Video will show on the front page'
+                : 'Video removed from the front page',
+            'video' => $video->fresh('channel.user'),
+        ]);
     }
 
     public function deleteVideo(Video $video)

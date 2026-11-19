@@ -252,13 +252,7 @@ class ShortsController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        \Storage::disk('public')->delete($video->video_path);
-        if ($video->thumbnail) {
-            \Storage::disk('public')->delete($video->thumbnail);
-        }
-
-        $video->shortLikes()->delete();
-        $video->delete();
+        $video->deleteWithFiles();
 
         return response()->json(['message' => 'Short deleted']);
     }

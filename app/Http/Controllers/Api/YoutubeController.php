@@ -354,6 +354,22 @@ class YoutubeController extends Controller
         return YoutubeVideoResource::collection($videos);
     }
 
+    public function destroy(Request $request, Video $video)
+    {
+        if ($video->platform !== 'youtube') {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        $video->loadMissing('channel');
+        if ($request->user()->id !== $video->channel?->user_id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $video->deleteWithFiles();
+
+        return response()->json(['message' => 'Video deleted']);
+    }
+
     public function upload(Request $request)
     {
         $request->validate([

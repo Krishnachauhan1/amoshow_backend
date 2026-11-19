@@ -210,13 +210,7 @@ class StudioController extends Controller
             abort(403);
         }
 
-        if ($video->video_path) {
-            Storage::disk('public')->delete($video->video_path);
-        }
-        if ($video->thumbnail) {
-            Storage::disk('public')->delete($video->thumbnail);
-        }
-        $video->delete();
+        $video->deleteWithFiles();
 
         return back()->with('status', 'Upload removed.');
     }

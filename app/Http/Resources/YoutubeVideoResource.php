@@ -69,6 +69,7 @@ class YoutubeVideoResource extends JsonResource
             'has_promotion'  => (bool) $this->has_paid_promotion,
             'earnings'       => YoutubeFormatter::earnings((int) $this->earnings_paise),
             'earnings_paise' => (int) $this->earnings_paise,
+            'is_owner'       => (bool) ($user && $channel && (int) $channel->user_id === (int) $user->id),
             'is_collab'      => (bool) $this->is_collab,
             'is_collaborator_video' => (bool) (
                 $user instanceof User

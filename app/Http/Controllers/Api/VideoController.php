@@ -108,12 +108,7 @@ class VideoController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        \Storage::disk('public')->delete($video->video_path);
-        if ($video->thumbnail) {
-            \Storage::disk('public')->delete($video->thumbnail);
-        }
-
-        $video->delete();
+        $video->deleteWithFiles();
 
         return response()->json(['message' => 'Video deleted']);
     }

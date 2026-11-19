@@ -115,6 +115,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/videos',               [YoutubeController::class, 'upload']);
         Route::post('/videos/{video}/like',  [YoutubeController::class, 'likeVideo']);
         Route::delete('/videos/{video}/like', [YoutubeController::class, 'unlikeVideo']);
+        Route::delete('/videos/{video}',     [YoutubeController::class, 'destroy']);
         Route::post('/videos/{video}/purchase/initiate', [VideoPurchaseController::class, 'initiate']);
         Route::post('/videos/{video}/purchase/verify', [VideoPurchaseController::class, 'verify']);
         Route::post('/videos/{video}/comments', [YoutubeCommentController::class, 'store']);
@@ -154,6 +155,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/videos',                  [AdminController::class, 'videos']);
         Route::patch('/videos/{video}/status', [AdminController::class, 'updateVideoStatus']);
+        Route::patch('/videos/{video}/home',   [AdminController::class, 'updateVideoHome']);
         Route::delete('/videos/{video}',       [AdminController::class, 'deleteVideo']);
 
         // Categories (OTT)

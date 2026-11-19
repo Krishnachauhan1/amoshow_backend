@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class Video extends Model
 {
@@ -15,7 +18,7 @@ class Video extends Model
         'duration', 'is_premium', 'price', 'comments_enabled', 'downloadable',
         'is_collab', 'ad_placement', 'has_paid_promotion',
         'views_count', 'likes_count', 'comments_count', 'earnings_paise',
-        'status', 'series_id', 'episode_number',
+        'status', 'show_on_home', 'series_id', 'episode_number',
     ];
 
     protected $casts = [
@@ -25,7 +28,19 @@ class Video extends Model
         'downloadable'        => 'boolean',
         'is_collab'           => 'boolean',
         'has_paid_promotion'  => 'boolean',
+        'show_on_home'        => 'boolean',
     ];
+
+    public static function ensureShowOnHomeColumn(): void
+    {
+        if (! Schema::hasTable('videos') || Schema::hasColumn('videos', 'show_on_home')) {
+            return;
+        }
+
+        Schema::table('videos', function (Blueprint $table) {
+            $table->boolean('show_on_home')->default(false)->after('status');
+        });
+    }
 
     public function scopeYoutube($query)
     {
@@ -85,6 +100,49 @@ class Video extends Model
     public function purchases()
     {
         return $this->hasMany(VideoPurchase::class);
+    }
+
+    public function deleteWithFiles(): void
+    {
+        if ($this->video_path) {
+            Storage::disk('public')->delete($this->video_path);
+        }
+        if ($this->thumbnail) {
+            Storage::disk('public')->delete($this->thumbnail);
+        }
+
+        try {
+            $this->shortLikes()->delete();
+        } catch (\Throwable) {
+        }
+        try {
+            $this->comments()->delete();
+        } catch (\Throwable) {
+        }
+        try {
+            $this->watchHistories()->delete();
+        } catch (\Throwable) {
+        }
+        try {
+            $this->collaborators()->delete();
+        } catch (\Throwable) {
+        }
+        try {
+            $this->purchases()->delete();
+        } catch (\Throwable) {
+        }
+        try {
+            $this->categories()->detach();
+        } catch (\Throwable) {
+        }
+        if (Schema::hasTable('home_section_video')) {
+            try {
+                \DB::table('home_section_video')->where('video_id', $this->id)->delete();
+            } catch (\Throwable) {
+            }
+        }
+
+        $this->delete();
     }
 
     public function isPaidContent(): bool
